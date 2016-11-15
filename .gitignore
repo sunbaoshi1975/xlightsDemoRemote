@@ -1,0 +1,5 @@
+*.bin
+*.iobj
+*.ipdb
+*.pdb
+compile
