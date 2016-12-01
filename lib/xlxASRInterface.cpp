@@ -45,6 +45,7 @@ ASRInterfaceClass theASR;
 //------------------------------------------------------------------
 ASRInterfaceClass::ASRInterfaceClass()
 {
+  m_speed = SERIALPORT_SPEED_LOW; // 9600
   m_revCmd = 0;
   m_sndCmd = 0;
   m_delayCmdTimer = 0;
@@ -53,6 +54,7 @@ ASRInterfaceClass::ASRInterfaceClass()
 void ASRInterfaceClass::Init(US _speed)
 {
   // Open ASR Port
+  m_speed = _speed;
   ASRPort.begin(_speed);
 }
 
@@ -89,7 +91,9 @@ bool ASRInterfaceClass::processCommand()
   // Delay Execution
   if( m_delayCmdTimer > 0 ) {
     if( --m_delayCmdTimer == 0 ) {
+      ASRPort.end();
       executeCmd(m_revCmd);
+      ASRPort.begin(m_speed);
     }
   }
 

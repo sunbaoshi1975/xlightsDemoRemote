@@ -212,7 +212,7 @@ bool RF24ClientClass::ProcessSend(String &strMsg, MyMessage &my_msg)
 	case 9:   // Set main lamp(ID:1) dimmer (V_PERCENTAGE:3), ack
 		msg.build(getAddress(), lv_nNodeID, 1, C_SET, V_PERCENTAGE, true);
 		bytValue = constrain(atoi(lv_sPayload), 0, 100);
-		msg.set(bytValue);
+		msg.set((uint8_t)OPERATOR_SET, bytValue);
 		bMsgReady = true;
 		SERIAL("Now sending set V_PERCENTAGE:%d message...", bytValue);
 		break;
@@ -226,7 +226,7 @@ bool RF24ClientClass::ProcessSend(String &strMsg, MyMessage &my_msg)
 	case 11:  // Set main lamp(ID:1) color temperature (V_LEVEL), ack
 		msg.build(getAddress(), lv_nNodeID, 1, C_SET, V_LEVEL, true);
 		iValue = constrain(atoi(lv_sPayload), CT_MIN_VALUE, CT_MAX_VALUE);
-		msg.set((unsigned int)iValue);
+		msg.set((uint8_t)OPERATOR_SET, (unsigned int)iValue);
 		bMsgReady = true;
 		SERIAL("Now sending set CCT V_LEVEL %d message...", iValue);
 		break;

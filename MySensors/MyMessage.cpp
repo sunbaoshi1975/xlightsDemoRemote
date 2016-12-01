@@ -22,10 +22,12 @@
 #include "ArduinoJson.h"
 
 MyMessage::MyMessage() {
+	msg.header.version_length = PROTOCOL_VERSION;
 	msg.header.destination = 0; // Gateway is default destination
 }
 
 MyMessage::MyMessage(uint8_t _sensor, uint8_t _type) {
+	msg.header.version_length = PROTOCOL_VERSION;
 	msg.header.destination = 0; // Gateway is default destination
 	msg.header.sensor = _sensor;
 	msg.header.type = _type;
@@ -165,6 +167,17 @@ uint8_t MyMessage::getByte() const {
 	}
 }
 
+uint8_t MyMessage::getByte(uint8_t *flag) const {
+	if (miGetPayloadType() == P_BYTE && miGetLength() == 2) {
+		*flag = msg.payload.data[0];
+		return msg.payload.data[1];
+	} else if (miGetPayloadType() == P_STRING) {
+		return atoi(msg.payload.data);
+	} else {
+		return 0;
+	}
+}
+
 bool MyMessage::getBool() const {
 	return getInt();
 }
@@ -217,7 +230,18 @@ unsigned int MyMessage::getUInt() const {
 	} else {
 		return 0;
 	}
+}
 
+unsigned int MyMessage::getUInt(uint8_t *flag) const {
+	if (miGetPayloadType() == P_UINT16 && miGetLength() == 3) {
+		*flag = msg.payload.data[0];
+		unsigned int value = msg.payload.data[1] + msg.payload.data[2] * 256;
+		return value;
+	} else if (miGetPayloadType() == P_STRING) {
+		return atol(msg.payload.data);
+	} else {
+		return 0;
+	}
 }
 
 // Sun added 2016-07-20
@@ -332,6 +356,23 @@ MyMessage& MyMessage::set(uint64_t value) {
 	miSetPayloadType(P_ULONG32);
 	miSetLength(8);
 	msg.payload.ui64Value = value;
+	return *this;
+}
+
+MyMessage& MyMessage::set(uint8_t flag, uint8_t value) {
+	miSetLength(2);
+	miSetPayloadType(P_BYTE);
+	msg.payload.data[0] = flag;
+	msg.payload.data[1] = value;
+	return *this;
+}
+
+MyMessage& MyMessage::set(uint8_t flag, unsigned int value) {
+	miSetPayloadType(P_UINT16);
+	miSetLength(3);
+	msg.payload.data[0] = flag;
+	msg.payload.data[1] = value % 256;
+	msg.payload.data[2] = value / 256;
 	return *this;
 }
 

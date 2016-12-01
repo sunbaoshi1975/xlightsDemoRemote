@@ -62,6 +62,18 @@ enum RUN_FLAG {UNEXECUTED, EXECUTED};
 //enum values for CldJSONCommand()
 enum COMMAND {CMD_SERIAL, CMD_POWER, CMD_COLOR, CMD_BRIGHTNESS, CMD_SCENARIO};
 
+// Switch value for set power command
+#define DEVICE_SW_OFF               0       // Turn Off
+#define DEVICE_SW_ON                1       // Turn On
+#define DEVICE_SW_TOGGLE            2       // Toggle
+
+// Update operator for set brightness & CCT command
+#define OPERATOR_SET                0
+#define OPERATOR_ADD                1
+#define OPERATOR_SUB                2
+#define OPERATOR_MUL                3
+#define OPERATOR_DIV                4
+
 // Macros for UID identifiers
 #define CLS_RULE                  'r'
 #define CLS_SCHEDULE              'a'

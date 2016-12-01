@@ -22,6 +22,8 @@ public:
   UC getLastSentCmd();
 
 private:
+  US m_speed;
+  
   void executeCmd(UC _cmd);
 };
 

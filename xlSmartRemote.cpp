@@ -174,13 +174,13 @@ BOOL SmartRemoteClass::SelfCheck(US ms)
 	static US tickCheckRadio = 0;				// must be static
 
 	// Save config if it was changed
-	if (++tickSaveConfig > 15000 / ms) {	// once per 15 seconds
+	if (++tickSaveConfig > 30000 / ms) {	// once per 30 seconds
 		tickSaveConfig = 0;
 		theConfig.SaveConfig();
 	}
 
-  // Slow Checking: once per 30 seconds
-  if (++tickCheckRadio > 30000 / ms) {
+  // Slow Checking: once per 10 seconds
+  if (++tickCheckRadio > 10000 / ms) {
 		// Check RF module
 		tickCheckRadio = 0;
     if( !IsRFGood() || !theRadio.CheckConfig() ) {

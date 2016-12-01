@@ -308,12 +308,14 @@ public:
 	const char* getString() const;
 	void* getCustom() const;
 	uint8_t getByte() const;
+	uint8_t getByte(uint8_t *flag) const;
 	bool getBool() const;
 	float getFloat() const;
 	long getLong() const;
 	unsigned long getULong() const;
 	int getInt() const;
 	unsigned int getUInt() const;
+	unsigned int getUInt(uint8_t *flag) const;
 	uint64_t getUInt64() const;
 
 	// Getter for ack-flag. True if this is an ack message.
@@ -348,6 +350,8 @@ public:
 	MyMessage& set(unsigned int value);
 	MyMessage& set(int value);
 	MyMessage& set(uint64_t value);
+	MyMessage& set(uint8_t flag, uint8_t value);
+	MyMessage& set(uint8_t flag, unsigned int value);
 
 	// Sun added 2016-05-18
 	char* getSerialString(char *buffer) const;
