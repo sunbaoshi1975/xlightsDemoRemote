@@ -72,6 +72,8 @@ void ConfigClass::InitConfig()
   m_config.enableSpeaker = false;
 	m_config.enableDailyTimeSync = true;
 	m_config.rfPowerLevel = RF24_PA_LEVEL_NODE;
+  m_config.useCloud = CLOUD_ENABLE;
+  m_config.stWiFi = 1;
 }
 
 void ConfigClass::InitDevStatus(UC nodeID)
@@ -105,7 +107,8 @@ BOOL ConfigClass::LoadConfig()
       || m_config.timeZone.dst > 1
       || m_config.timeZone.offset < -780
       || m_config.timeZone.offset > 780
-			|| m_config.rfPowerLevel > RF24_PA_MAX )
+			|| m_config.rfPowerLevel > RF24_PA_MAX
+      || m_config.useCloud > CLOUD_MUST_CONNECT )
     {
       InitConfig();
       m_isChanged = true;
@@ -414,6 +417,37 @@ BOOL ConfigClass::SetRFPowerLevel(UC level)
 		return true;
 	}
 	return false;
+}
+
+UC ConfigClass::GetUseCloud()
+{
+	return m_config.useCloud;
+}
+
+BOOL ConfigClass::SetUseCloud(UC opt)
+{
+	if( opt != m_config.useCloud && opt <= CLOUD_MUST_CONNECT ) {
+		m_config.useCloud = opt;
+		m_isChanged = true;
+		return true;
+	}
+	return false;
+}
+
+BOOL ConfigClass::GetWiFiStatus()
+{
+  return m_config.stWiFi;
+}
+
+BOOL ConfigClass::SetWiFiStatus(BOOL _st)
+{
+  if( _st != m_config.stWiFi ) {
+    m_config.stWiFi = _st;
+    m_isChanged = true;
+    SERIAL_LN("WiFi status set to %d", _st);
+    return true;
+  }
+  return false;
 }
 
 // Load Device Status

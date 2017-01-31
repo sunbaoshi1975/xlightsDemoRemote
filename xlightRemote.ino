@@ -15,6 +15,10 @@ It also demotrate an ASR module.
 #include "xlSmartRemote.h"
 #include "xlxSerialConsole.h"
 
+// Set "manual" mode
+SYSTEM_MODE(MANUAL);
+SYSTEM_THREAD(ENABLED);
+
 void setup()
 {
   // System Initialization
@@ -26,10 +30,48 @@ void setup()
   // Initialization Radio Interfaces
   theSys.InitRadio();
 
+  WiFi.listen(false);
+  while(1) {
+    if( !WiFi.hasCredentials() || !theConfig.GetWiFiStatus() ) {
+      if( !theSys.connectWiFi() ) {
+        // get credential from BLE or Serial
+        SERIAL_LN(F("will enter listening mode"));
+        WiFi.listen();
+        break;
+      }
+    }
+
+    // Connect to Wi-Fi
+    if( theSys.connectWiFi() ) {
+      if( theConfig.GetUseCloud() == CLOUD_DISABLE ) {
+        Particle.disconnect();
+      } else {
+        // Connect to the Cloud
+        if( !theSys.connectCloud() ) {
+          if( theConfig.GetUseCloud() == CLOUD_MUST_CONNECT ) {
+            // Must connect to the Cloud
+            continue;
+          }
+        }
+      }
+    } else {
+      if( theConfig.GetUseCloud() == CLOUD_MUST_CONNECT ) {
+        // Must have network
+        continue;
+      }
+    }
+    break;
+  }
+
+  // Initialization network Interfaces
+  theSys.InitNetwork();
+
 	// Wait the system started
-	while( millis() < 2000 ) {
-		Particle.process();
-	}
+  if( Particle.connected() == true ) {
+  	while( millis() < 2000 ) {
+  		Particle.process();
+  	}
+  }
 
 	// Initialize Serial Console
   theConsole.Init();
@@ -49,4 +91,9 @@ void loop()
 
   // Self-test & alarm trigger, also insert delay between each loop
   IF_MAINLOOP_TIMER( theSys.SelfCheck(RTE_DELAY_SELFCHECK), "SelfCheck" );
+
+  // Process Could Messages
+  if( Particle.connected() == true ) {
+    IF_MAINLOOP_TIMER( Particle.process(), "ProcessCloud" );
+  }
 }

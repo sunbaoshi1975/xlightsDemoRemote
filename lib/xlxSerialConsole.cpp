@@ -272,6 +272,10 @@ bool SerialConsoleClass::showThisHelp(String &strTopic)
         SERIAL_LN(F("--- Command: set spkr [0|1] ---"));
         SERIAL_LN(F("To disable or enable speaker"));
         CloudOutput(F("set spkr 0|1"));
+      } else if (strnicmp(sObj, "cloud", 5) == 0) {
+        SERIAL_LN(F("--- Command: set cloud [0|1|2] ---"));
+        SERIAL_LN(F("To disable, enable or require cloud"));
+        CloudOutput(F("set cloud 0|1|2"));
       }
     } else {
       SERIAL_LN(F("--- Command: set <object value> ---"));
@@ -294,10 +298,12 @@ bool SerialConsoleClass::showThisHelp(String &strTopic)
       SERIAL_LN(F("     , to set system flag value, use '? set flag' for detail"));
       SERIAL_LN(F("set var <var name> <value>"));
       SERIAL_LN(F("     , to set value of variable, use '? set var' for detail"));
+      SERIAL_LN(F("e.g. set cloud [0|1|2]"));
+      SERIAL_LN(F("     , cloud option disable|enable|must"));
       SERIAL_LN(F("e.g. set debug [log:level]"));
       SERIAL_LN(F("     , where log is [serial|flash|syslog|cloud|all"));
       SERIAL_LN(F("     and level is [none|alter|critical|error|warn|notice|info|debug]\n\r"));
-      CloudOutput(F("set tz|dst|nodeid|base|spkr|flag|var|debug"));
+      CloudOutput(F("set tz|dst|nodeid|base|spkr|flag|var|cloud|debug"));
     }
   } else if(strTopic.equals("sys")) {
     SERIAL_LN(F("--- Command: sys <mode> ---"));
@@ -314,6 +320,7 @@ bool SerialConsoleClass::showThisHelp(String &strTopic)
     SERIAL_LN(F("   clear <object>: clear object, such as nodeid"));
     SERIAL_LN(F("e.g. sys sync time"));
     SERIAL_LN(F("e.g. sys clear nodeid 1"));
+    SERIAL_LN(F("e.g. sys clear credientials"));
     SERIAL_LN(F("e.g. sys reset\n\r"));
     CloudOutput(F("sys base|private|reset|safe|setup|dfu|update|serial|sync|clear"));
   } else {
@@ -440,11 +447,14 @@ bool SerialConsoleClass::doShow(const char *cmd)
       CloudOutput("Local time %s, %s", Time.format(time, TIME_FORMAT_ISO8601_FULL).c_str(), theSys.m_tzString.c_str());
 	} else if (strnicmp(sTopic, "var", 3) == 0) {
 		SERIAL_LN("theSys.m_lastMsg = \t\t\t%s", theSys.m_lastMsg.c_str());
+    SERIAL_LN("theConfig.useCloud = \t\t%d", theConfig.GetUseCloud());
     SERIAL_LN("");
   } else if (strnicmp(sTopic, "flag", 4) == 0) {
 		SERIAL_LN("theSys.m_isRF = \t\t\t%s", (theSys.IsRFGood() ? "true" : "false"));
     SERIAL_LN("theConfig.enableSpeaker = \t\t%s", (theConfig.IsSpeakerEnabled() ? "true" : "false"));
     SERIAL_LN("theRadio._bBaseNetworkEnabled = \t%s", (theRadio.isBaseNetworkEnabled() ? "true" : "false"));
+    SERIAL_LN("theConfig.stWiFi = \t\t\t%s", (theConfig.GetWiFiStatus() ? "On" : "Off"));
+    SERIAL_LN("Cloud %s", Particle.connected() ? "connected" : "disconnected");
     SERIAL_LN("");
 		SERIAL_LN("theConfig.m_isLoaded = \t\t\t%s", (theConfig.IsConfigLoaded() ? "true" : "false"));
 		SERIAL_LN("theConfig.m_isChanged = \t\t%s", (theConfig.IsConfigChanged() ? "true" : "false"));
@@ -615,6 +625,18 @@ bool SerialConsoleClass::doSet(const char *cmd)
         SERIAL_LN("Require spkr flag value [0|1], use '? set spkr' for detail\n\r");
         retVal = true;
       }
+    } else if (strnicmp(sTopic, "cloud", 5) == 0) {
+      // Cloud Option
+      sParam1 = next();
+      if( sParam1) {
+        theConfig.SetUseCloud(atoi(sParam1));
+        SERIAL_LN("Cloud option set to %d\n\r", theConfig.GetUseCloud());
+        CloudOutput("Cloud option %d", theConfig.GetUseCloud());
+        retVal = true;
+      } else {
+        SERIAL_LN("Require Cloud option [0|1|2], use '? set cloud' for detail\n\r");
+        retVal = true;
+      }
     }
   }
 
@@ -686,8 +708,14 @@ bool SerialConsoleClass::doSysSub(const char *cmd)
     else if (strnicmp(sTopic, "clear", 5) == 0) {
       sParam1 = next();
       if(sParam1) {
-      } else {
-        return false;
+        if( stricmp(sParam1, "nodeid") == 0 ) {
+        } else if( stricmp(sParam1, "credientials") == 0 ) {
+          WiFi.clearCredentials();
+          SERIAL_LN(F("WiFi credientials cleared\n\r"));
+          CloudOutput(F("WiFi credientials cleared"));
+        } else {
+          // ToDo: other clearance
+        }
       }
     }
     else if (strnicmp(sTopic, "base", 4) == 0) {
@@ -767,7 +795,7 @@ bool SerialConsoleClass::SetupWiFi(const char *cmd)
 
 bool SerialConsoleClass::SetWiFiCredential(const char *cmd)
 {
-  WiFi.listen();
+  //WiFi.listen();
   if( gintWiFi_Auth = 0 ) {
     WiFi.setCredentials(gstrWiFi_SSID);
   } else if( gintWiFi_Auth = 1 ) {
@@ -777,10 +805,10 @@ bool SerialConsoleClass::SetWiFiCredential(const char *cmd)
   } else if( gintWiFi_Auth = 3 ) {
     WiFi.setCredentials(gstrWiFi_SSID, gstrWiFi_Password, WPA, WLAN_CIPHER_TKIP);
   }
-  SERIAL("Wi-Fi credential saved...reconnecting...");
-  CloudOutput("Wi-Fi credential saved...reconnecting");
-  WiFi.connect();
-  SERIAL_LN("%s", (WiFi.ready() ? "OK" : "Failed"));
+  SERIAL("Wi-Fi credential saved");
+  WiFi.listen(false);
+  theSys.connectWiFi();
+  CloudOutput("Wi-Fi credential saved, reconnect %s", WiFi.ready() ? "OK" : "Failed");
 
   return true;
 }

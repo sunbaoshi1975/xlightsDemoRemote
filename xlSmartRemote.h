@@ -15,6 +15,8 @@ class SmartRemoteClass
 {
 private:
   BOOL m_isRF;
+  BOOL m_isLAN;
+  BOOL m_isWAN;
 
 public:
   String m_SysID;
@@ -26,6 +28,7 @@ public:
   SmartRemoteClass();
   void Init();
   void InitRadio();
+  void InitNetwork();
 
   BOOL Start();
   UC GetStatus();
@@ -40,6 +43,15 @@ public:
   BOOL CheckRF();
   BOOL SelfCheck(US ms);
   BOOL IsRFGood();
+
+  BOOL CheckWiFi();
+  BOOL CheckNetwork();
+
+  BOOL IsLANGood();
+  BOOL IsWANGood();
+
+  BOOL connectWiFi();
+  BOOL connectCloud();
 
   // Process all kinds of commands
   void ProcessCommands();

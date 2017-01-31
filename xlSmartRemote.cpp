@@ -42,6 +42,8 @@ SmartRemoteClass theSys;
 SmartRemoteClass::SmartRemoteClass()
 {
 	m_isRF = false;
+	m_isLAN = false;
+	m_isWAN = false;
 }
 
 // Primitive initialization before loading configuration
@@ -81,6 +83,42 @@ void SmartRemoteClass::InitRadio()
   }
 }
 
+/// check LAN & WAN
+void SmartRemoteClass::InitNetwork()
+{
+	BOOL oldWAN = IsWANGood();
+	BOOL oldLAN = IsLANGood();
+
+	// Check WAN and LAN
+	CheckNetwork();
+
+	if (IsWANGood())
+	{
+		if( !oldWAN ) {	// Only log when status changed
+			SERIAL_LN("WAN is working.");
+			SetStatus(STATUS_NWS);
+		}
+
+		// Initialize Logger: syslog & cloud log
+		// ToDo: substitude network parameters
+		//theLog.InitSysLog();
+		//theLog.InitCloud();
+	}
+	else if (IsLANGood())
+	{
+		if( !oldLAN ) {	// Only log when status changed
+			SERIAL_LN("LAN is working.");
+			SetStatus(STATUS_DIS);
+		}
+	}
+	else if (IsRFGood()) {
+		SetStatus(STATUS_BMW);
+	}
+	else {
+		SetStatus(STATUS_ERR);
+	}
+}
+
 // Get the remote started
 BOOL SmartRemoteClass::Start()
 {
@@ -102,6 +140,7 @@ BOOL SmartRemoteClass::Start()
 
 void SmartRemoteClass::Restart()
 {
+	theConfig.SaveConfig();
 	SetStatus(STATUS_RST);
 	delay(1000);
 	System.reset();
@@ -139,6 +178,91 @@ BOOL SmartRemoteClass::SetStatus(UC st)
 	return true;
 }
 
+// Check Wi-Fi module and connection
+BOOL SmartRemoteClass::CheckWiFi()
+{
+	if( WiFi.RSSI() > 0 ) {
+		m_isWAN = false;
+		m_isLAN = false;
+		SERIAL_LN("Wi-Fi chip error!");
+		return false;
+	}
+
+	if( !WiFi.ready() ) {
+		m_isWAN = false;
+		m_isLAN = false;
+		SERIAL_LN("Wi-Fi module error!");
+		return false;
+	}
+	return true;
+}
+
+BOOL SmartRemoteClass::CheckNetwork()
+{
+	// Check Wi-Fi module
+	if( !CheckWiFi() ) {
+		return false;
+	}
+
+	// Check WAN
+	m_isWAN = WiFi.resolve("www.google.com");
+
+	// Check LAN if WAN is not OK
+	if( !m_isWAN ) {
+		m_isLAN = (WiFi.ping(WiFi.gatewayIP(), 3) < 3);
+		if( !m_isLAN ) {
+			SERIAL_LN("Cannot reach local gateway!");
+			m_isLAN = (WiFi.ping(WiFi.localIP(), 3) < 3);
+			if( !m_isLAN ) {
+				SERIAL_LN("Cannot reach itself!");
+			}
+		}
+	} else {
+		m_isLAN = true;
+	}
+
+	return true;
+}
+
+BOOL SmartRemoteClass::IsLANGood()
+{
+	return m_isLAN;
+}
+
+BOOL SmartRemoteClass::IsWANGood()
+{
+	return m_isWAN;
+}
+
+// Connect to the Cloud
+BOOL SmartRemoteClass::connectCloud()
+{
+	BOOL retVal = Particle.connected();
+	if( !retVal ) {
+		SERIAL("Cloud connecting...");
+	  Particle.connect();
+	  waitFor(Particle.connected, RTE_CLOUD_CONN_TIMEOUT);
+	  retVal = Particle.connected();
+		SERIAL_LN("%s", retVal ? "OK" : "Failed");
+	}
+  return retVal;
+}
+
+// Connect Wi-Fi
+BOOL SmartRemoteClass::connectWiFi()
+{
+	BOOL retVal = WiFi.ready();
+	if( !retVal ) {
+		SERIAL("Wi-Fi connecting...");
+	  WiFi.connect();
+	  waitFor(WiFi.ready, RTE_WIFI_CONN_TIMEOUT);
+	  retVal = WiFi.ready();
+		SERIAL_LN("%s", retVal ? "OK" : "Failed");
+	}
+  theConfig.SetWiFiStatus(retVal);
+  return retVal;
+}
+
 // Close and reopen serial port to avoid buffer overrun
 void SmartRemoteClass::ResetSerialPort()
 {
@@ -172,6 +296,8 @@ BOOL SmartRemoteClass::SelfCheck(US ms)
 {
 	static US tickSaveConfig = 0;				// must be static
 	static US tickCheckRadio = 0;				// must be static
+	static UC tickAcitveCheck = 0;
+	static UC tickWiFiOff = 0;
 
 	// Save config if it was changed
 	if (++tickSaveConfig > 30000 / ms) {	// once per 30 seconds
@@ -182,6 +308,7 @@ BOOL SmartRemoteClass::SelfCheck(US ms)
   // Slow Checking: once per 10 seconds
   if (++tickCheckRadio > 10000 / ms) {
 		// Check RF module
+		++tickAcitveCheck;
 		tickCheckRadio = 0;
     if( !IsRFGood() || !theRadio.CheckConfig() ) {
 			// Check RF register values even if RF is marked good
@@ -193,6 +320,41 @@ BOOL SmartRemoteClass::SelfCheck(US ms)
 			// Send node init message if necessary
 			ResumeRFNetwork();
 		}*/
+
+		// Check Network
+		if( theConfig.GetWiFiStatus() ) {
+			if( !IsWANGood() || tickAcitveCheck % 5 == 0 || GetStatus() == STATUS_DIS ) {
+				InitNetwork();
+			}
+
+			if( IsWANGood() ) { // WLAN is good
+				tickWiFiOff = 0;
+				if( !Particle.connected() ) {
+					// Cloud disconnected, try to recover
+					if( theConfig.GetUseCloud() != CLOUD_DISABLE ) {
+						connectCloud();
+					}
+				} else {
+					if( theConfig.GetUseCloud() == CLOUD_DISABLE ) {
+						Particle.disconnect();
+					}
+				}
+			} else { // WLAN is wrong
+				SERIAL_LN("WLAN if off for %d", tickWiFiOff + 1);
+				if( ++tickWiFiOff > 5 ) {
+					theConfig.SetWiFiStatus(false);
+					if( theConfig.GetUseCloud() == CLOUD_MUST_CONNECT ) {
+						SERIAL_LN("System is about to reset due to lost of network...");
+						Restart();
+					} else {
+						// Avoid keeping trying
+						SERIAL_LN("Turn off WiFi!");
+						WiFi.disconnect();
+						WiFi.off();	// In order to resume Wi-Fi, restart the application
+					}
+				}
+			}
+		}
 
 		// Daily Cloud Synchronization
 		/// TimeSync

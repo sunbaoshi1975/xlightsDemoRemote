@@ -44,7 +44,9 @@ typedef struct
   BOOL enableSpeaker          :1;           // Whether enable speaker
   BOOL Reserved_bool          :5;           // Reserved for boolean flags
   UC rfPowerLevel             :2;           // RF Power Level 0..3
-  UC Reserved1                :6;           // Reserved bits
+  BOOL stWiFi                 :1;           // Wi-Fi status: On / Off
+  UC Reserved1                :5;           // Reserved bits
+  UC useCloud;                              // How to depend on the Cloud
 } Config_t;
 
 //------------------------------------------------------------------
@@ -143,6 +145,12 @@ public:
 
   UC GetRFPowerLevel();
   BOOL SetRFPowerLevel(UC level);
+
+  UC GetUseCloud();
+  BOOL SetUseCloud(UC opt);
+
+  BOOL GetWiFiStatus();
+  BOOL SetWiFiStatus(BOOL _st);
 
   // DevStatusRow_t interfaces
   BOOL GetDevPresent();

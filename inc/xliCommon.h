@@ -33,6 +33,11 @@
 #define STATUS_RST                0x06        // Reseting
 #define STATUS_ERR                0x07        // Fatal Error
 
+// Cloud Dependency
+#define CLOUD_DISABLE             0x00        // Disable Cloud
+#define CLOUD_ENABLE              0x01        // Default, Enable Cloud, use it if available
+#define CLOUD_MUST_CONNECT        0x02        // Enable Cloud and get connected anyhow
+
 // Serial Port Speed
 #define SERIALPORT_SPEED_LOW      9600
 #define SERIALPORT_SPEED_14400    14400
