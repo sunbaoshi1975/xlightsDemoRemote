@@ -21,14 +21,13 @@ SYSTEM_THREAD(ENABLED);
 
 void setup()
 {
+  WiFi.on();
+
   // System Initialization
   theSys.Init();
 
   // Load Configuration
   theConfig.LoadConfig();
-
-  // Initialization Radio Interfaces
-  theSys.InitRadio();
 
   WiFi.listen(false);
   while(1) {
@@ -62,6 +61,9 @@ void setup()
     }
     break;
   }
+
+  // Initialization Radio Interfaces
+  theSys.InitRadio();
 
   // Initialization network Interfaces
   theSys.InitNetwork();

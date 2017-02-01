@@ -73,6 +73,9 @@ void SmartRemoteClass::Init()
 /// check RF2.4
 void SmartRemoteClass::InitRadio()
 {
+	// Set NetworkID
+	while(theRadio.GetNetworkID() == 0) delay(50);
+	
 	// Check RF2.4
 	if( CheckRF() ) {
   	if (IsRFGood())
@@ -354,6 +357,8 @@ BOOL SmartRemoteClass::SelfCheck(US ms)
 					}
 				}
 			}
+		} else if( WiFi.ready() ) {
+			theConfig.SetWiFiStatus(true);
 		}
 
 		// Daily Cloud Synchronization
@@ -362,10 +367,11 @@ BOOL SmartRemoteClass::SelfCheck(US ms)
   }
 
 	// Check System Status
+	/*
 	if( GetStatus() == STATUS_ERR ) {
 		SERIAL_LN("System is about to reset due to STATUS_ERR...");
 		Restart();
-	}
+	}*/
 
 	// ToDo:add any other potential problems to check
 	//...
